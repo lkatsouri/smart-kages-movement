@@ -9,7 +9,7 @@ Using the [movement](https://movement.neuroinformatics.com) package to analyse m
 First, create a conda environment with some required dependencies:
 
 ```bash
-conda create -n smart-kages -c conda-forge python=3.13 pytables
+conda create -n smart-kages -c conda-forge python=3.13 pytables ffmpeg
 conda activate smart-kages
 ```
 
@@ -27,6 +27,13 @@ To contribute, make sure to include the `dev` dependencies as well:
 pip install -e '.[dev]'
 ```
 
+To update the package following changes to the `main` branch on GitHub, run:
+
+```bash
+git pull origin main
+pip install -U -e .
+```
+
 ## Usage
 
 The main way to use the code is by working through the Jupyter notebooks in the `notebooks` directory, in the order they are listed.
@@ -37,7 +44,9 @@ The notebooks are as follows:
 
 * `01_parse_data_into_df.ipynb`: Parses data paths from the Smart-Kages folder structure and stores them in pandas DataFrames. Also loads time adjustments to help estimate start and end times for each 1-hour segment, and identifies potential issues with the data, such as overlapping segments.
 * `02_load_kages_as_movement_ds.ipynb`: Loads all DeepLabCut `.h5` pose files for each kage and concatenates them into a single `movement` dataset per kage. Also assigns a datetime index across the `time` dimension for easy access, and saves the resulting datasets to NetCDF files.
-* `03_diagnostic_plots.ipynb`: Still a work in progress—stay tuned!
+* `03_QC_and_cleaning.ipynb`: Runs QC on each kage's NetCDF output, plots frame counts and keypoint confidences, then filters low-confidence points, smooths positions, interpolates gaps, and writes cleaned positions back to the datasets while saving QC reports.
+* `04_select_data_for_analysis.ipynb`: Uses the QC outputs to pick the subset of kages and the best week of data to analyze, along with the most reliable keypoint(s) to focus on for downstream work.
+* `05_best_week_overview.ipynb`: Explores the selected best week per kage and generates comparison plots that summarize movement metrics across the curated cohort.
 
 ## Input/Output Data Structure
 
@@ -45,11 +54,11 @@ We expect all data to be stored under a single folder, hereafter referred to as 
 
 Each kage folder should contain at least the `videos/` and `analysis/dlc_output/` subfolders, which are themselves hierarchically subdivided by date, i.e. `YYYY/MM/DD/`. Each day's folder contains videos and DeepLabCut predictions saved as `.h5` files, split into 1-hour segments.
 
-The `videos/YYYY/MM/DD/` subfolder is also expected to contain an `adjustments.txt` file, which contains time adjustments for each 1-hour segment. This file is used to calculate the start datetime for each segment. Segment
-end datetimes are estimated by counting the number of video frames and assuming a constant frame rate of 2 fps.
+The `videos/YYYY/MM/DD/` subfolder is also expected to contain an `adjustments.txt` file, which contains time adjustments for each 1-hour segment. This file is used to calculate the start datetime for each segment.
+
+The `dlc_output/YYYY/MM/DD/` subfolder is also expected to contain a `corrected_timestamps.pkl` file, i.e. 1 per day. This file contains a dictionary mapping each pose filename to an array of corrected timestamps, expressed in seconds since the start of the hour. The first element should match the offset in the `adjustments.txt` file, and the rest should be derived by adding the frame timestamps (extracted from the .mp4 file) to this offset.
 
 A `DATA_DIR/movement_analysis/` subfolder is created to store the outputs, but the path can be customised in the notebooks.
-
 
 ## License
 This code is licensed under the [3-Clause BSD License](https://opensource.org/license/bsd-3-clause), see the [LICENSE](LICENSE) file for details.
